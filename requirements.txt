@@ -1,6 +1,5 @@
-import asyncio
-import random
-import aiohttp
-import nest_asyncio
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
+python-telegram-bot==20.0
+aiohttp
+nest_asyncio
+fastapi
+uvicorn
