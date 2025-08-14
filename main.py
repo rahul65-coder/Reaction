@@ -34,7 +34,7 @@ async def send_reaction(bot_token, chat_id, message_id, emoji):
             if resp.status == 200:
                 print(f" ^|^e Bot reacted with {emoji}")
             else:
-                print(f" ^}^l Reaction failed ({resp.status}) for bot")
+                print(f" ^}^l Reaction failed (resp.status}) for bot")
 
 #  ^=^s  Handle incoming message
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
