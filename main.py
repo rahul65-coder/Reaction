@@ -5,8 +5,9 @@ import nest_asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 from aiohttp import web
+from collections import defaultdict
 
-# Your 5 bot tokens
+# Configuration
 BOT_TOKENS = [
     "8458550542:AAFXEaZ_PbgR6D3zi3eBWoZPME4YAJ6FWPY",  # Old bot
     "8057181584:AAEKvtV85uZwUmY3BX0gHlOJsr9uC7nU410",
@@ -15,14 +16,17 @@ BOT_TOKENS = [
     "8270199619:AAHLimPDAdstKvUjXfv8XbkCDF6bYJBMPpg"
 ]
 
-# Only Telegram-allowed emojis (your list)
 EMOJI_LIST = [
     "❤️", "👍", "🔥", "😍", "🥰", "👏", "💋", "🏆", "🤑",
     "🎉", "💸", "☠️", "💯", "", "⚡", "🤩", "",
     "☠", "😎", "", "😘", "😈", "🤯", "😇"
 ]
 
-# Direct API reaction
+# Rate limiting and concurrency control
+MESSAGE_LOCK = asyncio.Lock()
+ACTIVE_TASKS = defaultdict(set)
+MAX_CONCURRENT_MESSAGES = 10  # Adjust based on your needs
+
 async def send_reaction(bot_token, chat_id, message_id, emoji):
     api_url = f"https://api.telegram.org/bot{bot_token}/setMessageReaction"
     payload = {
@@ -30,29 +34,56 @@ async def send_reaction(bot_token, chat_id, message_id, emoji):
         "message_id": message_id,
         "reaction": [{"type": "emoji", "emoji": emoji}]
     }
-    async with aiohttp.ClientSession() as session:
-        async with session.post(api_url, json=payload) as resp:
-            if resp.status == 200:
-                print(f"✅ Reaction success with {emoji}")
-            else:
-                print(f"❌ Reaction failed ({resp.status}) for bot")
+    
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+            async with session.post(api_url, json=payload) as resp:
+                if resp.status == 200:
+                    print(f"✅ Reaction success with {emoji} (Bot: {bot_token[-4:]})")
+                else:
+                    error = await resp.text()
+                    print(f"❌ Reaction failed ({resp.status}) for bot {bot_token[-4:]}: {error}")
+    except Exception as e:
+        print(f"⚠️ Network error for bot {bot_token[-4:]}: {str(e)}")
 
-# Handle incoming message
+async def process_message(chat_id, message_id):
+    emojis = random.sample(EMOJI_LIST, k=len(BOT_TOKENS))
+    tasks = []
+    
+    for i, token in enumerate(BOT_TOKENS):
+        emoji = emojis[i % len(emojis)]
+        tasks.append(send_reaction(token, chat_id, message_id, emoji))
+    
+    await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Clean up
+    async with MESSAGE_LOCK:
+        ACTIVE_TASKS[chat_id].discard(message_id)
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
-    if message:
-        chat_id = message.chat_id
-        msg_id = message.message_id
-        print(f"📨 Message received — ID: {msg_id} | Chat: {chat_id}")
+    if not message:
+        return
 
-        emojis = random.sample(EMOJI_LIST, k=len(BOT_TOKENS))
-        tasks = []
-        for i, token in enumerate(BOT_TOKENS):
-            emoji = emojis[i % len(emojis)]
-            tasks.append(send_reaction(token, chat_id, msg_id, emoji))
-        await asyncio.gather(*tasks)
+    chat_id = message.chat_id
+    msg_id = message.message_id
+    
+    async with MESSAGE_LOCK:
+        # Check if we're already processing this message
+        if msg_id in ACTIVE_TASKS[chat_id]:
+            print(f"⏩ Already processing message {msg_id} in chat {chat_id}")
+            return
+        
+        # Check concurrency limits
+        if len(ACTIVE_TASKS[chat_id]) >= MAX_CONCURRENT_MESSAGES:
+            print(f"🚫 Too many concurrent messages for chat {chat_id} (max {MAX_CONCURRENT_MESSAGES})")
+            return
+            
+        ACTIVE_TASKS[chat_id].add(msg_id)
+    
+    print(f"📨 Message received — ID: {msg_id} | Chat: {chat_id}")
+    asyncio.create_task(process_message(chat_id, msg_id))
 
-# Health check handler for Uptime Robot
 async def health_check(request):
     return web.Response(text="Bot is running!")
 
@@ -65,12 +96,23 @@ async def start_web_server():
     await site.start()
     print("🌐 Web server started on port 8080")
 
-# Start bot and web server
+async def cleanup_tasks():
+    """Periodically clean up completed tasks"""
+    while True:
+        await asyncio.sleep(3600)  # Cleanup every hour
+        async with MESSAGE_LOCK:
+            for chat_id in list(ACTIVE_TASKS.keys()):
+                if not ACTIVE_TASKS[chat_id]:
+                    del ACTIVE_TASKS[chat_id]
+
 async def main():
-    print("🚀 5x Bot Reactions Activated!")
+    print("🚀 Enhanced 5x Bot Reactions Activated!")
     
     # Start web server
     await start_web_server()
+    
+    # Start cleanup task
+    asyncio.create_task(cleanup_tasks())
     
     # Start Telegram bot
     app = ApplicationBuilder().token(BOT_TOKENS[0]).build()
