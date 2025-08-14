@@ -1,11 +1,11 @@
 import asyncio
 import random
 import aiohttp
-import nest_asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
+from aiohttp import web
 
-#  ^|^e Your 5 bot tokens
+# Your 5 bot tokens
 BOT_TOKENS = [
     "8458550542:AAFXEaZ_PbgR6D3zi3eBWoZPME4YAJ6FWPY",  # Old bot
     "8057181584:AAEKvtV85uZwUmY3BX0gHlOJsr9uC7nU410",
@@ -14,14 +14,14 @@ BOT_TOKENS = [
     "8270199619:AAHLimPDAdstKvUjXfv8XbkCDF6bYJBMPpg"
 ]
 
-#  ^|^e Only Telegram-allowed emojis (your list)
+# Only Telegram-allowed emojis (your list)
 EMOJI_LIST = [
     "❤️", "👍", "🔥", "😍", "🥰", "👏", "💋", "🏆", "🤑",
     "🎉", "💸", "☠️", "💯", "", "⚡", "🤩", "",
     "☠", "😎", "", "😘", "😈", "🤯", "😇"
 ]
 
-#  ^=^r  Direct API reaction
+# Direct API reaction
 async def send_reaction(bot_token, chat_id, message_id, emoji):
     api_url = f"https://api.telegram.org/bot{bot_token}/setMessageReaction"
     payload = {
@@ -36,7 +36,7 @@ async def send_reaction(bot_token, chat_id, message_id, emoji):
             else:
                 print(f"❌ Reaction failed ({resp.status}) for bot")
 
-#  ^=^s  Handle incoming message
+# Handle incoming message
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     if message:
@@ -51,16 +51,34 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             tasks.append(send_reaction(token, chat_id, msg_id, emoji))
         await asyncio.gather(*tasks)
 
-#  ^=^z^` Start bot
+# Health check endpoint for Render
+async def health_check(request):
+    return web.Response(text="Bot is running")
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get('/', health_check)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', 8080)
+    await site.start()
+    print("Web server started on port 8080")
+
 async def main():
     print("🚀 5x Bot Reactions Activated!")
+    
+    # Start web server for health checks
+    await start_web_server()
+    
+    # Start Telegram bot
     app = ApplicationBuilder().token(BOT_TOKENS[0]).build()
     app.add_handler(MessageHandler(filters.ALL, handle_message))
     await app.initialize()
     await app.start()
     await app.updater.start_polling()
+    
+    # Keep the application running
     await asyncio.Event().wait()
 
-#  ^= ^d UserLAnd / Jupyter support
-nest_asyncio.apply()
-asyncio.get_event_loop().run_until_complete(main())
+if __name__ == '__main__':
+    asyncio.run(main())
