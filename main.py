@@ -1,6 +1,7 @@
 import asyncio
 import random
 import aiohttp
+import nest_asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 from aiohttp import web
@@ -51,9 +52,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             tasks.append(send_reaction(token, chat_id, msg_id, emoji))
         await asyncio.gather(*tasks)
 
-# Health check endpoint for Render
+# Health check handler for Uptime Robot
 async def health_check(request):
-    return web.Response(text="Bot is running")
+    return web.Response(text="Bot is running!")
 
 async def start_web_server():
     app = web.Application()
@@ -62,12 +63,13 @@ async def start_web_server():
     await runner.setup()
     site = web.TCPSite(runner, '0.0.0.0', 8080)
     await site.start()
-    print("Web server started on port 8080")
+    print("🌐 Web server started on port 8080")
 
+# Start bot and web server
 async def main():
     print("🚀 5x Bot Reactions Activated!")
     
-    # Start web server for health checks
+    # Start web server
     await start_web_server()
     
     # Start Telegram bot
@@ -77,8 +79,9 @@ async def main():
     await app.start()
     await app.updater.start_polling()
     
-    # Keep the application running
+    # Keep running
     await asyncio.Event().wait()
 
-if __name__ == '__main__':
-    asyncio.run(main())
+# UserLAnd / Jupyter support
+nest_asyncio.apply()
+asyncio.get_event_loop().run_until_complete(main())
