@@ -16,9 +16,9 @@ BOT_TOKENS = [
 
 #  ^|^e Only Telegram-allowed emojis (your list)
 EMOJI_LIST = [
-    " ^}   ^o", " ^=^q^m", " ^=^t ", " ^=^x^m", " ^=  ", " ^=^q^o", " ^=^x^a", " ^=^x ", " ^=^x ", " ^=^n^i",
-    " ^= ^t", " ^=^x^f", " ^=^r ", " ^=^x^b", " ^z ", " ^=  ", " ^=^r^t", " ^=^m^s", " ^=^x^n", " ^=^q^n",
-    " ^=^x^x", " ^=^x^h", " ^=  ", " ^=^x^g"
+    "❤️", "👍", "🔥", "😍", "🥰", "👏", "😁", "😱", "😢",
+    "🎉", "🤔", "😆", "💯", "😂", "⚡", "🤨", "💔",
+    "🍓", "😎", "👎", "😘", "😈", "🤯", "😇"
 ]
 
 #  ^=^r  Direct API reaction
@@ -32,9 +32,9 @@ async def send_reaction(bot_token, chat_id, message_id, emoji):
     async with aiohttp.ClientSession() as session:
         async with session.post(api_url, json=payload) as resp:
             if resp.status == 200:
-                print(f" ^|^e Bot reacted with {emoji}")
+                print(f"✅ Reaction success with {emoji}")
             else:
-                print(f" ^}^l Reaction failed (resp.status}) for bot")
+                print(f"❌ Reaction failed ({resp.status}) for bot")
 
 #  ^=^s  Handle incoming message
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -42,7 +42,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if message:
         chat_id = message.chat_id
         msg_id = message.message_id
-        print(f" ^=^s  Message: ID {msg_id} from chat {chat_id}")
+        print(f"📨 Message received — ID: {msg_id} | Chat: {chat_id}")
 
         emojis = random.sample(EMOJI_LIST, k=len(BOT_TOKENS))
         tasks = []
@@ -53,7 +53,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 #  ^=^z^` Start bot
 async def main():
-    print(" ^= ^v 5x Bot Reactions Activated!")
+    print("🚀 5x Bot Reactions Activated!")
     app = ApplicationBuilder().token(BOT_TOKENS[0]).build()
     app.add_handler(MessageHandler(filters.ALL, handle_message))
     await app.initialize()
