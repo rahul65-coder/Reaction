@@ -1,104 +1,81 @@
 import asyncio
 import random
 import aiohttp
-import nest_asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 from aiohttp import web
-from collections import defaultdict
 
-# Configuration
+# 5 Bots ke Tokens (ENV se secure karo!)
 BOT_TOKENS = [
-    "8458550542:AAFXEaZ_PbgR6D3zi3eBWoZPME4YAJ6FWPY",  # Old bot
-    "8057181584:AAEKvtV85uZwUmY3BX0gHlOJsr9uC7nU410",
-    "7681907786:AAE67X6xIZHobYcKrkkk7zvF45peaRyOAnk",
-    "7954292419:AAH7XtlSRtNIFMVQoS6PJ9ST2QqSC17x_j4",
-    "8270199619:AAHLimPDAdstKvUjXfv8XbkCDF6bYJBMPpg"
+    "8458550542:AAFXEaZ_PbgR6D3zi3eBWoZPME4YAJ6FWPY",  # Bot 1
+    "8057181584:AAEKvtV85uZwUmY3BX0gHlOJsr9uC7nU410",  # Bot 2
+    "7681907786:AAE67X6xIZHobYcKrkkk7zvF45peaRyOAnk",  # Bot 3
+    "7954292419:AAH7XtlSRtNIFMVQoS6PJ9ST2QqSC17x_j4",  # Bot 4
+    "8270199619:AAHLimPDAdstKvUjXfv8XbkCDF6bYJBMPpg"   # Bot 5
 ]
 
-EMOJI_LIST = [
-    "❤️", "👍", "🔥", "😍", "🥰", "👏", "💋", "🏆", "🤑",
-    "🎉", "💸", "☠️", "💯", "", "⚡", "🤩", "",
-    "☠", "😎", "", "😘", "😈", "🤯", "😇"
-]
+# Emoji List (Telegram allowed)
+EMOJI_LIST = ["❤️", "👍", "🔥", "😍", "🥰", "👏", "💋", "🏆", "🤑"]
 
-# Rate limiting and concurrency control
-MESSAGE_LOCK = asyncio.Lock()
-ACTIVE_TASKS = defaultdict(set)
-MAX_CONCURRENT_MESSAGES = 10  # Adjust based on your needs
-
+# ✅ Reaction Bhejo (5 Bots Parallel)
 async def send_reaction(bot_token, chat_id, message_id, emoji):
-    api_url = f"https://api.telegram.org/bot{bot_token}/setMessageReaction"
+    api_url = f"https://api.telegram.org/bot{bot_token}/setMessageReaction"  # Fixed URL
     payload = {
         "chat_id": chat_id,
         "message_id": message_id,
         "reaction": [{"type": "emoji", "emoji": emoji}]
     }
-    
-    try:
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
-            async with session.post(api_url, json=payload) as resp:
-                if resp.status == 200:
-                    print(f"✅ Reaction success with {emoji} (Bot: {bot_token[-4:]})")
-                else:
-                    error = await resp.text()
-                    print(f"❌ Reaction failed ({resp.status}) for bot {bot_token[-4:]}: {error}")
-    except Exception as e:
-        print(f"⚠️ Network error for bot {bot_token[-4:]}: {str(e)}")
+    async with aiohttp.ClientSession() as session:
+        async with session.post(api_url, json=payload) as resp:
+            if resp.status == 200:
+                print(f"✅ {bot_token[:5]}...: {emoji}")
+            else:
+                print(f"❌ {bot_token[:5]}... failed ({resp.status})")
 
-async def process_message(chat_id, message_id):
-    emojis = random.sample(EMOJI_LIST, k=len(BOT_TOKENS))
-    tasks = []
-    
-    for i, token in enumerate(BOT_TOKENS):
-        emoji = emojis[i % len(emojis)]
-        tasks.append(send_reaction(token, chat_id, message_id, emoji))
-    
-    await asyncio.gather(*tasks, return_exceptions=True)
-    
-    # Clean up
-    async with MESSAGE_LOCK:
-        ACTIVE_TASKS[chat_id].discard(message_id)
-
+# Message Aane Pe 5 Bots se React Kare
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
-    if not message:
-        return
+    if message:
+        chat_id = message.chat_id
+        msg_id = message.message_id
+        print(f"📨 Message ID: {msg_id} | Chat: {chat_id}")
 
-    chat_id = message.chat_id
-    msg_id = message.message_id
-    
-    async with MESSAGE_LOCK:
-        # Check if we're already processing this message
-        if msg_id in ACTIVE_TASKS[chat_id]:
-            print(f"⏩ Already processing message {msg_id} in chat {chat_id}")
-            return
-        
-        # Check concurrency limits
-        if len(ACTIVE_TASKS[chat_id]) >= MAX_CONCURRENT_MESSAGES:
-            print(f"🚫 Too many concurrent messages for chat {chat_id} (max {MAX_CONCURRENT_MESSAGES})")
-            return
-            
-        ACTIVE_TASKS[chat_id].add(msg_id)
-    
-    print(f"📨 Message received — ID: {msg_id} | Chat: {chat_id}")
-    asyncio.create_task(process_message(chat_id, msg_id))
+        # 5 Random Emojis (1 per bot)
+        emojis = random.sample(EMOJI_LIST, k=len(BOT_TOKENS))  # Fixed typo (BOT_TOKENS)
+        tasks = []
+        for i, token in enumerate(BOT_TOKENS):  # Fixed typo (BOT_TOKENS)
+            tasks.append(send_reaction(token, chat_id, msg_id, emojis[i]))
+        await asyncio.gather(*tasks)  # Parallel execution
 
+# Render Ke Liye Health Check
 async def health_check(request):
-    return web.Response(text="Bot is running!")
+    return web.Response(text="5 Bots Chal Rahe Hai! ✅")
 
 async def start_web_server():
     app = web.Application()
-    app.router.add_get('/', health_check)
+    app.router.add_get("/", health_check)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 8080)
+    site = web.TCPSite(runner, "0.0.0.0", 8080)
     await site.start()
-    print("🌐 Web server started on port 8080")
+    print("🌐 Server: 8080 (Render Ke Liye)")
 
-async def cleanup_tasks():
-    """Periodically clean up completed tasks"""
-    while True:
+async def main():
+    print("🚀 5 Bots Activated!")
+    await start_web_server()  # Render compatibility
+    
+    # Bot 1 (Polling) - Baaki 4 API se react karenge
+    app = ApplicationBuilder().token(BOT_TOKENS[0]).build()
+    app.add_handler(MessageHandler(filters.ALL, handle_message))
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    
+    print("🤖 1 Bot Polling, 4 Bots API Mode Mein!")
+    await asyncio.Event().wait()  # 24/7 Run
+
+if __name__ == "__main__":
+    asyncio.run(main())    while True:
         await asyncio.sleep(3600)  # Cleanup every hour
         async with MESSAGE_LOCK:
             for chat_id in list(ACTIVE_TASKS.keys()):
