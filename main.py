@@ -75,32 +75,4 @@ async def main():
     await asyncio.Event().wait()  # 24/7 Run
 
 if __name__ == "__main__":
-    asyncio.run(main())    while True:
-        await asyncio.sleep(3600)  # Cleanup every hour
-        async with MESSAGE_LOCK:
-            for chat_id in list(ACTIVE_TASKS.keys()):
-                if not ACTIVE_TASKS[chat_id]:
-                    del ACTIVE_TASKS[chat_id]
-
-async def main():
-    print("🚀 Enhanced 5x Bot Reactions Activated!")
-    
-    # Start web server
-    await start_web_server()
-    
-    # Start cleanup task
-    asyncio.create_task(cleanup_tasks())
-    
-    # Start Telegram bot
-    app = ApplicationBuilder().token(BOT_TOKENS[0]).build()
-    app.add_handler(MessageHandler(filters.ALL, handle_message))
-    await app.initialize()
-    await app.start()
-    await app.updater.start_polling()
-    
-    # Keep running
-    await asyncio.Event().wait()
-
-# UserLAnd / Jupyter support
-nest_asyncio.apply()
-asyncio.get_event_loop().run_until_complete(main())
+    asyncio.run(main())
